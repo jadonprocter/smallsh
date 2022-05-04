@@ -31,11 +31,11 @@ int main()
         // '&' means the command will be executed in the background.
         // Max length of chars: 2048, Max length of args: 512.
         // no error checking command syntax!!!
-        char command[2048];       // max char 2048
-        char cmd[21];             // chars in cmd
-        char *args[513];          // max args 512
-        char inputRedirect[501];  // inputFile
-        char outputRedirect[501]; // outputFile
+        char command[2049] = "cmd a1 a2 a3 a4 < input"; // max char 2048
+        char cmd[21];                                   // chars in cmd
+        char *args[513];                                // max args 512
+        char inputRedirect[501];                        // inputFile
+        char outputRedirect[501];                       // outputFile
 
         char delim[] = " ";
 
@@ -43,13 +43,13 @@ int main()
         // 1a. USE THE COLON AS A PROMPT FOR EACH LINE
         printf(":");
         fflush(stdin); // flush to sanatize input
-        scanf("%s", command);
+        // scanf("%s", command);
         if (strcmp(command, "exit") == 0)
         {
             break;
         }
 
-        // TOKENIZE TO GET COMMANDS AND ARGS OR REDIRECTS...
+        // TOKENIZE TO GET COMMANDS AND ARGS AND REDIRECTS...
         char *stok = strtok(command, delim);
         strcpy(cmd, stok);
         int argsIndex = 0;
@@ -57,12 +57,12 @@ int main()
         while (stok != NULL)
         {
             stok = strtok(NULL, delim);
-            if (strcmp(stok, "<"))
+            if (strcmp(stok, "<") == 0)
             {
                 stok = strtok(NULL, delim);
                 strcpy(inputRedirect, stok);
             }
-            else if (strcmp(stok, ">"))
+            else if (strcmp(stok, ">") == 0)
             {
 
                 stok = strtok(NULL, delim);
