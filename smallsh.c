@@ -48,46 +48,54 @@ int main()
 
         if (strcmp(command, "exit") == 0)
         {
+            free(command);
             break;
         }
 
         char *token = strtok_r(save, " ", &save);
-        strcpy(cmd, token);
-        printf("%s\n", token);
-        int argArrIndex = 0;
-        while ((token = strtok_r(save, " ", &save)))
+        if (strcmp(token, "#"))
         {
-            if (strcmp(token, "<") == 0)
-            {
-                token = strtok_r(save, " ", &save);
-                strcpy(inputRedirect, token);
-            }
-            else if (strcmp(token, ">") == 0)
-            {
-                token = strtok_r(save, " ", &save);
-                strcpy(outputRedirect, token);
-            }
-            else if (strcmp(token, "#") == 0)
-            {
-                break;
-            }
-            else
-            {
-                int argLength = strlen(token);
-                args[argArrIndex] = (char *)malloc(argLength * sizeof(char) + 1);
-                strcpy(args[argArrIndex], token);
-                argArrIndex++;
-            }
-        }
-        printf("cmd: %s\n", cmd);
-        for (int i = 0; i < argArrIndex; i++)
-        {
-            printf("arg: %s\n", args[i]);
-        }
-        printf("infile: %s\noutfile: %s\n", inputRedirect, outputRedirect);
+            strcpy(cmd, token);
+            printf("%s\n", token);
+            int argArrIndex = 0;
 
-        free(command);
-    }
+            while ((token = strtok_r(save, " ", &save)))
+            {
+                if (strcmp(token, "<") == 0)
+                {
+                    token = strtok_r(save, " ", &save);
+                    strcpy(inputRedirect, token);
+                }
+                else if (strcmp(token, ">") == 0)
+                {
+                    token = strtok_r(save, " ", &save);
+                    strcpy(outputRedirect, token);
+                }
+                else if (strcmp(token, "#") == 0)
+                {
+                    break;
+                }
+                else
+                {
+                    int argLength = strlen(token);
+                    args[argArrIndex] = (char *)malloc(argLength * sizeof(char) + 1);
+                    strcpy(args[argArrIndex], token);
+                    argArrIndex++;
+                }
+            }
+            printf("cmd: %s ", cmd);
+            for (int i = 0; i < argArrIndex; i++)
+            {
+                printf(" arg: %s ", args[i]);
+            }
+            // printf("infile: %s outfile: %s\n", inputRedirect, outputRedirect);
+
+            for (int i = 0; i < argArrIndex; i++)
+            {
+                free(args[i]);
+            }
+        }
+        }
 
     // 2. COMMENTS AND BLANK LINES
     // Any line that begins with '#' is a comment.
