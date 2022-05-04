@@ -53,10 +53,14 @@ int main()
         }
 
         char *token = strtok_r(save, " ", &save);
+
+        // 2. COMMENTS AND BLANK LINES
+        // Any line that begins with '#' is a comment.
+        // A blank line will also do nothing.
+        // Just re-prompt.
         if (strcmp(token, "#"))
         {
             strcpy(cmd, token);
-            printf("%s\n", token);
             int argArrIndex = 0;
 
             while ((token = strtok_r(save, " ", &save)))
@@ -83,11 +87,13 @@ int main()
                     argArrIndex++;
                 }
             }
+
             printf("cmd: %s ", cmd);
             for (int i = 0; i < argArrIndex; i++)
             {
                 printf(" arg: %s ", args[i]);
             }
+            printf("\n");
             // printf("infile: %s outfile: %s\n", inputRedirect, outputRedirect);
 
             for (int i = 0; i < argArrIndex; i++)
@@ -95,12 +101,7 @@ int main()
                 free(args[i]);
             }
         }
-        }
-
-    // 2. COMMENTS AND BLANK LINES
-    // Any line that begins with '#' is a comment.
-    // A blank line will also do nothing.
-    // Just re-prompt.
+    }
 
     // 3. EXPANSION OF VARIABLE "$$" INTO THE PROCESS ID OF SMALLSH ITSELF.
 
