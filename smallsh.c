@@ -13,13 +13,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <signal.h>
-int howManyTokens(char *s)
-{
-    int count = 0;
-    while (strtok(s, " "))
-        count++;
-    return count;
-}
+#include <stdbool.h>
 
 int main()
 {
@@ -31,52 +25,39 @@ int main()
         // '&' means the command will be executed in the background.
         // Max length of chars: 2048, Max length of args: 512.
         // no error checking command syntax!!!
-        char command[2049] = "cmd a1 a2 a3 a4 < input"; // max char 2048
-        char cmd[21];                                   // chars in cmd
-        char *args[513];                                // max args 512
-        char inputRedirect[501];                        // inputFile
-        char outputRedirect[501];                       // outputFile
+        char *command;             // char ptr to entire command line
+        size_t commandSize = 2049; // max size of command
+        command = (char *)malloc(commandSize * sizeof(char));
+        char cmd[11];             // chars in cmd
+        char *args[512];          // max args 512
+        char inputRedirect[501];  // inputFile
+        char outputRedirect[501]; // outputFile
+        bool amp = false;         // run in background
+        char *save = command;     // save ptr for tokenization
 
-        char delim[] = " ";
-
-        fflush(stdout); // flush to sanatize output
         // 1a. USE THE COLON AS A PROMPT FOR EACH LINE
+        fflush(stdout); // flush to sanatize output
         printf(":");
+
         fflush(stdin); // flush to sanatize input
-        // scanf("%s", command);
-        if (strcmp(command, "exit") == 0)
+        getline(&command, &commandSize, stdin);
+
+        if (strcmp(command, "exit\n") == 0)
         {
             break;
         }
 
-        // TOKENIZE TO GET COMMANDS AND ARGS AND REDIRECTS...
-        char *stok = strtok(command, delim);
-        strcpy(cmd, stok);
-        int argsIndex = 0;
-
-        while (stok != NULL)
+        char *token = strtok_r(save, " ", &save);
+        strcpy(cmd, token);
+        printf("%s\n", token);
+        int argArrIndex = 0;
+        while ((token = strtok_r(save, " ", &save)))
         {
-            stok = strtok(NULL, delim);
-            if (strcmp(stok, "<") == 0)
-            {
-                stok = strtok(NULL, delim);
-                strcpy(inputRedirect, stok);
-            }
-            else if (strcmp(stok, ">") == 0)
-            {
-
-                stok = strtok(NULL, delim);
-                strcpy(outputRedirect, stok);
-            }
-            else
-            {
-                if (argsIndex < 512)
-                {
-                    strcpy(args[argsIndex], stok);
-                    argsIndex++;
-                }
-            }
+            token = strtok_r(save, " ", &save);
+            printf("%s\n", token);
         }
+
+        free(command);
     }
 
     // 2. COMMENTS AND BLANK LINES
