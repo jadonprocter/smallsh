@@ -57,9 +57,34 @@ int main()
         int argArrIndex = 0;
         while ((token = strtok_r(save, " ", &save)))
         {
-            token = strtok_r(save, " ", &save);
-            printf("%s\n", token);
+            if (strcmp(token, "<") == 0)
+            {
+                token = strtok_r(save, " ", &save);
+                strcpy(inputRedirect, token);
+            }
+            else if (strcmp(token, ">") == 0)
+            {
+                token = strtok_r(save, " ", &save);
+                strcpy(outputRedirect, token);
+            }
+            else if (strcmp(token, "#") == 0)
+            {
+                break;
+            }
+            else
+            {
+                int argLength = strlen(token);
+                args[argArrIndex] = (char *)malloc(argLength * sizeof(char) + 1);
+                strcpy(args[argArrIndex], token);
+                argArrIndex++;
+            }
         }
+        printf("cmd: %s\n", cmd);
+        for (int i = 0; i < argArrIndex; i++)
+        {
+            printf("arg: %s\n", args[i]);
+        }
+        printf("infile: %s\noutfile: %s\n", inputRedirect, outputRedirect);
 
         free(command);
     }
