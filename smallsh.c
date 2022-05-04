@@ -25,6 +25,7 @@ int main()
         // '&' means the command will be executed in the background.
         // Max length of chars: 2048, Max length of args: 512.
         // no error checking command syntax!!!
+
         char *command;             // char ptr to entire command line
         size_t commandSize = 2049; // max size of command
         command = (char *)malloc(commandSize * sizeof(char));
@@ -39,10 +40,13 @@ int main()
         fflush(stdout); // flush to sanatize output
         printf(":");
 
-        fflush(stdin); // flush to sanatize input
-        getline(&command, &commandSize, stdin);
+        fflush(stdin);                                             // flush to sanatize input
+        size_t bytesRead = getline(&command, &commandSize, stdin); // get entire line.
 
-        if (strcmp(command, "exit\n") == 0)
+        // remove new line
+        command[bytesRead - 1] = '\0';
+
+        if (strcmp(command, "exit") == 0)
         {
             break;
         }
