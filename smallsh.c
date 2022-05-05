@@ -15,8 +15,61 @@
 #include <signal.h>
 #include <stdbool.h>
 
+void expand(char *s, pid_t p)
+{
+    size_t length = strlen(s);
+    int howManyExpansions = 0;
+    int index = 0;
+    char *pidToChar = (char *)malloc(10 * sizeof(char));
+    sprintf(pidToChar, "%d", p);
+    for (int i = 0; i < length - 1; i++)
+    {
+        if (s[i] == '$' && i != length - 1)
+        {
+            i++;
+            if (s[i] == '$')
+            {
+                howManyExpansions++;
+            }
+        }
+    }
+    for (int i = 0; i < howManyExpansions; i++)
+    {
+        while (index < length)
+        {
+            if (s[index] == '$' && index != length - 1)
+            {
+                if (s[index + 1] == '$')
+                {
+                    // change "$$" to PID
+                    char *tmp = (char *)malloc((strlen(s) + strlen(pidToChar) + 1) * sizeof(char));
+
+                    for (int j = 0; j < index; j++)
+                    {
+                        tmp[j] = s[j];
+                    }
+                    strcat(tmp, pidToChar);
+                    index += strlen(pidToChar);
+                    for (int j = index; j < length + strlen(pidToChar); j++)
+                    {
+                        tmp[j] = s[j];
+                    }
+                    strcpy(s, tmp);
+                    free(tmp);
+                    index = length;
+                }
+            }
+            index++;
+        }
+    }
+
+    free(pidToChar);
+    s[length] = '\0';
+}
+
 int main()
 {
+    pid_t smallshPID = getpid();
     int exit = 0;
 
     while (exit == 0)
@@ -46,6 +99,10 @@ int main()
         // remove new line
         command[bytesRead - 1] = '\0';
 
+        // 3. EXPANSION OF VARIABLE "$$" INTO THE PROCESS ID OF SMALLSH ITSELF.
+        expand(command, smallshPID);
+
+        // Handle exit (requirement 4).
         if (strcmp(command, "exit") == 0)
         {
             free(command);
@@ -88,6 +145,26 @@ int main()
                 }
             }
 
+            // 4. BUILT IN COMMANDS: EXIT, CD, AND STATUS.
+            // Don't need input and output redirection for these commands.
+            // No set exit status.
+            // These commands with '&' will be ignored.
+            // EXIT. - no args, leaves shell. -- handled above
+            // CD. - with no args, goes home. otherwise goes to specified path.
+            if (strcmp(cmd, "cd") == 0)
+            {
+                if (argArrIndex == 1)
+                {
+                    char *currDir = getcwd(args[0], strlen(args[0]));
+                    chdir(currDir);
+                }
+                else
+                {
+                    chdir(getenv("HOME"));
+                }
+            }
+            // STATUS. - prints the exit status or the last foreground process status. (ignore 3 built in commands).
+
             printf("cmd: %s ", cmd);
             for (int i = 0; i < argArrIndex; i++)
             {
@@ -102,8 +179,6 @@ int main()
             }
         }
     }
-
-    // 3. EXPANSION OF VARIABLE "$$" INTO THE PROCESS ID OF SMALLSH ITSELF.
 
     // 4. BUILT IN COMMANDS: EXIT, CD, AND STATUS.
     // Don't need input and output redirection for these commands.
