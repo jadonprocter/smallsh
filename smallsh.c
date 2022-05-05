@@ -18,10 +18,12 @@
 void expand(char *s, pid_t p)
 {
     size_t length = strlen(s);
+
     int howManyExpansions = 0;
-    int index = 0;
+
     char *pidToChar = (char *)malloc(10 * sizeof(char));
     sprintf(pidToChar, "%d", p);
+
     for (int i = 0; i < length - 1; i++)
     {
         if (s[i] == '$' && i != length - 1)
@@ -33,38 +35,30 @@ void expand(char *s, pid_t p)
             }
         }
     }
-    for (int i = 0; i < howManyExpansions; i++)
-    {
-        while (index < length)
-        {
-            if (s[index] == '$' && index != length - 1)
-            {
-                if (s[index + 1] == '$')
-                {
-                    // change "$$" to PID
-                    char *tmp = (char *)malloc((strlen(s) + strlen(pidToChar) + 1) * sizeof(char));
 
-                    for (int j = 0; j < index; j++)
-                    {
-                        tmp[j] = s[j];
-                    }
-                    strcat(tmp, pidToChar);
-                    index += strlen(pidToChar);
-                    for (int j = index; j < length + strlen(pidToChar); j++)
-                    {
-                        tmp[j] = s[j];
-                    }
-                    strcpy(s, tmp);
-                    free(tmp);
-                    index = length;
-                }
+    int dollarArray[howManyExpansions];
+    int dollarIndex = 0;
+
+    for (int i = 0; i < length - 1; i++)
+    {
+        if (s[i] == '$' && i != length - 1)
+        {
+            if (s[i + 1] == '$')
+            {
+                dollarArray[dollarIndex] = i;
+                dollarIndex++;
             }
-            index++;
         }
     }
 
+    char *tmp = (char *)malloc(((((strlen(pidToChar) - 2) * howManyExpansions) + length + 1)) * sizeof(char));
+
+    for (int i = 0; i < howManyExpansions; i++)
+    {
+    }
+
+    free(tmp);
     free(pidToChar);
-    s[length] = '\0';
 }
 
 int main()
