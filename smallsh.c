@@ -27,18 +27,26 @@ bool inArray(int arr[], int arrLength, int value)
     return false;
 }
 
+/*
+ * Description: expands any instance of $$ into the current pid.
+ * Recieves: a pointer to char array, a pid.
+ * Returns: None -- overwrites the string in place.
+ */
 void expand(char *s, pid_t p)
 {
-    size_t length = strlen(s);
+    size_t length = strlen(s); // length of command
 
+    // turn pid_t to a char array.
     char *pidToChar = (char *)malloc(10 * sizeof(char));
     sprintf(pidToChar, "%d", p);
 
-    int howManyExpansions = 0;
+    int howManyExpansions = 0; // holds the amount of "$$" found in the command (in s).
 
+    // saves the indicies of where the "$$" are located.
     int *dollarArray = (int *)malloc(howManyExpansions * sizeof(int));
     int dollarIndex = 0;
 
+    // finds instances of "$$" and updates the values needed.
     for (int i = 0; i < length - 1; i++)
     {
         if (s[i] == '$' && i != length - 1)
@@ -53,11 +61,13 @@ void expand(char *s, pid_t p)
         }
     }
 
+    // create a tmp char array to hold the new expanded command.
     int lengthOfTmp = ((((strlen(pidToChar) - 2) * howManyExpansions) + length + 1));
     char *tmp = (char *)malloc(lengthOfTmp * sizeof(char));
 
-    int sOffset = 0;
+    int sOffset = 0; // holds the index of the s string.
 
+    // fill the tmp char array  expanding the instances of "$$".
     for (int i = 0; i < lengthOfTmp; i++)
     {
         if (inArray(dollarArray, howManyExpansions, i))
@@ -72,7 +82,9 @@ void expand(char *s, pid_t p)
             sOffset++;
         }
     }
-    strcpy(s, tmp);
+    strcpy(s, tmp); // overwrite s with the expanded array
+
+    // free memory used on the heap.
     free(dollarArray);
     free(tmp);
     free(pidToChar);
