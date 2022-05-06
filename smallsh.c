@@ -104,10 +104,9 @@ int main()
         // Max length of chars: 2048, Max length of args: 512.
         // no error checking command syntax!!!
 
-        char *command;             // char ptr to entire command line
-        size_t commandSize = 2049; // max size of command
-        command = (char *)malloc(commandSize * sizeof(char));
-        char cmd[11]; // chars in cmd
+        char *command = (char *)malloc(commandSize * sizeof(char)); // char ptr to entire command line
+        size_t commandSize = 2049;                                  // max size of command
+        char cmd[11];                                               // chars in cmd
 
         char **args = (char **)malloc(1 * sizeof(char)); // max args 512
         int argArrIndex = 0;                             // number of arguments
@@ -139,6 +138,7 @@ int main()
             {
                 free(args[i]);
             }
+            free(args);
             free(command);
             break;
         }
@@ -180,6 +180,8 @@ int main()
                     argArrIndex++;
                 }
             }
+            args = realloc(args, (argArrIndex + 2) * sizeof(char));
+            args[argArrIndex] = NULL;
         }
         else
         {
@@ -192,13 +194,6 @@ int main()
             continue;
         }
 
-        /* DELETE: */
-        for (int i = 0; i < argArrIndex; i++)
-        {
-            printf("%s\n", args[i]);
-        }
-        /***********/
-
         // 4. BUILT IN COMMANDS: EXIT, CD, AND STATUS.
         // Don't need input and output redirection for these commands.
         // No set exit status.
@@ -207,31 +202,44 @@ int main()
         // CD. - with no args, goes home. otherwise goes to specified path.
         if (strcmp(cmd, "cd") == 0)
         {
-            if (argArrIndex == 1)
+            char dir[100];
+            getcwd(dir, 100);
+            printf("%s\n", dir);
+            if (argArrIndex == 2)
             {
-                char dir[100];
-                getcwd(dir, 100);
-                // printf("Before: %s\n", dir);
-                int cdStat = chdir(args[0]);
-                if (cdStat < 0)
+                if (strcmp(args[1], "..") || strcmp(args[1], "."))
                 {
-                    printf("Error: %s is not a directory", args[0]);
-                    fflush(stdout);
+                    int cdStat = chdir(args[1]);
+
+                    char dir1[100];
+                    getcwd(dir1, 100);
+                    printf("%s\n", dir1);
+
+                    if (cdStat < 0)
+                    {
+                        printf("Error: %s is not a directory", args[0]);
+                        fflush(stdout);
+                    }
                 }
-                getcwd(dir, 100);
-                printf("After: %s\n", dir);
-                fflush(stdout);
+                else if (!strcmp(args[1], ".."))
+                {
+                    chdir("..");
+                    char dir2[100];
+                    getcwd(dir2, 100);
+                    printf("%s\n", dir2);
+                }
+                else if (!strcmp(args[1], "."))
+                {
+
+                    chdir(".");
+                    char dir3[100];
+                    getcwd(dir3, 100);
+                    printf("%s\n", dir3);
+                }
             }
             else
             {
-                char dir[100];
-                getcwd(dir, 100);
-                printf("Before: %s\n", dir);
-                fflush(stdout);
                 chdir(getenv("HOME"));
-                getcwd(dir, 100);
-                printf("After: %s\n", dir);
-                fflush(stdout);
             }
         }
         // STATUS. - prints the exit status or the last foreground process status. (ignore 3 built in commands).
@@ -242,6 +250,7 @@ int main()
         }
         else
         {
+
             // 5. EXECUTING OTHER COMMANDS.
             // When non-built-in command fork() a child process. the child will then use exec().
             // Your shell should use PATH and allow shell scripts to be exectuted.
@@ -259,7 +268,7 @@ int main()
             else if (childProcess == 0)
             {
                 status = 0;
-                printf("child process: %d\n", childProcess);
+                // printf("child process: %d\n", childProcess);
 
                 execvp(cmd, args);
 
@@ -270,7 +279,7 @@ int main()
             else
             {
                 wait(&childProcessStatus);
-                printf("parent process: %d\n", getpid());
+                // printf("parent process: %d\n", getpid());
                 status = 1;
             }
         }
@@ -298,6 +307,14 @@ int main()
         // Shell will then no longer run background processes.
         // '&' will be ignored.
         // A second SIGTSTP will return the shell to normal.
+
+        // FREE MEMORY
+        for (int i = 0; i < argArrIndex - 1; i++)
+        {
+            free(args[i]);
+        }
+        free(args);
+        free(command);
     }
 
     return 0;
