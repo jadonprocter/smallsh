@@ -109,8 +109,8 @@ int main()
         command = (char *)malloc(commandSize * sizeof(char));
         char cmd[11]; // chars in cmd
 
-        char *args[512];     // max args 512
-        int argArrIndex = 0; // number of arguments
+        char **args = (char **)malloc(1 * sizeof(char)); // max args 512
+        int argArrIndex = 0;                             // number of arguments
 
         char inputRedirect[501];  // inputFile
         char outputRedirect[501]; // outputFile
@@ -173,8 +173,9 @@ int main()
                 else
                 {
                     int argLength = strlen(token);
+                    args = realloc(args, (argArrIndex + 2) * sizeof(char));
                     args[argArrIndex] = (char *)malloc(argLength * sizeof(char) + 1);
-                    token[strlen(token) - 1] = '\0'; // null terminate string
+                    token[strlen(token)] = '\0'; // null terminate string
                     strcpy(args[argArrIndex], token);
                     argArrIndex++;
                 }
@@ -186,9 +187,17 @@ int main()
             {
                 free(args[i]);
             }
+            free(args);
             free(command);
             continue;
         }
+
+        /* DELETE: */
+        for (int i = 0; i < argArrIndex; i++)
+        {
+            printf("%s\n", args[i]);
+        }
+        /***********/
 
         // 4. BUILT IN COMMANDS: EXIT, CD, AND STATUS.
         // Don't need input and output redirection for these commands.
