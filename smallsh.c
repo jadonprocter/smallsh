@@ -152,7 +152,8 @@ int main()
         if (strcmp(token, "#"))
         {
             strcpy(cmd, token);
-            args[0] = token;
+            args[0] = (char *)malloc((strlen(token) + 1) * sizeof(char));
+            strcpy(args[0], token);
             args[0][strlen(token)] = '\0';
             argArrIndex++;
 
