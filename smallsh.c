@@ -15,14 +15,29 @@
 #include <signal.h>
 #include <stdbool.h>
 
+bool inArray(int *arr, int arrLength, int value)
+{
+    for (int i = 0; i < arrLength; i++)
+    {
+        if (arr[i] == value)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void expand(char *s, pid_t p)
 {
     size_t length = strlen(s);
 
-    int howManyExpansions = 0;
-
     char *pidToChar = (char *)malloc(10 * sizeof(char));
     sprintf(pidToChar, "%d", p);
+
+    int howManyExpansions = 0;
+
+    int *dollarArray = (int *)malloc(howManyExpansions * sizeof(int));
+    int dollarIndex = 0;
 
     for (int i = 0; i < length - 1; i++)
     {
@@ -32,31 +47,33 @@ void expand(char *s, pid_t p)
             if (s[i] == '$')
             {
                 howManyExpansions++;
-            }
-        }
-    }
-
-    int dollarArray[howManyExpansions];
-    int dollarIndex = 0;
-
-    for (int i = 0; i < length - 1; i++)
-    {
-        if (s[i] == '$' && i != length - 1)
-        {
-            if (s[i + 1] == '$')
-            {
-                dollarArray[dollarIndex] = i;
+                dollarArray[dollarIndex] = i - 1;
                 dollarIndex++;
             }
         }
     }
 
-    char *tmp = (char *)malloc(((((strlen(pidToChar) - 2) * howManyExpansions) + length + 1)) * sizeof(char));
+    int lengthOfTmp = ((((strlen(pidToChar) - 2) * howManyExpansions) + length + 1));
+    char *tmp = (char *)malloc(lengthOfTmp * sizeof(char));
 
-    for (int i = 0; i < howManyExpansions; i++)
+    int sOffset = 0;
+
+    for (int i = 0; i < lengthOfTmp; i++)
     {
+        if (inArray(dollarArray, howManyExpansions, i))
+        {
+            strcat(tmp, pidToChar);
+            i += strlen(pidToChar) - 1;
+            sOffset += 2;
+        }
+        else
+        {
+            tmp[i] = s[sOffset];
+            sOffset++;
+        }
     }
-
+    strcpy(s, tmp);
+    free(dollarArray);
     free(tmp);
     free(pidToChar);
 }
