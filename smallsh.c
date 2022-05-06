@@ -82,8 +82,8 @@ void expand(char *s, pid_t p)
             sOffset++;
         }
     }
-    tmp[strlen(tmp) - 1] = '\0'; // null terminate the string
-    strcpy(s, tmp);              // overwrite s with the expanded array
+    tmp[strlen(tmp)] = '\0'; // null terminate the string
+    strcpy(s, tmp);          // overwrite s with the expanded array
     printf("%s", s);
     fflush(stdout);
     // free memory used on the heap.
@@ -222,17 +222,40 @@ int main()
             }
         }
         // STATUS. - prints the exit status or the last foreground process status. (ignore 3 built in commands).
-        if (strcmp(cmd, "status") == 0)
+        else if (strcmp(cmd, "status") == 0)
         {
             printf("STATUS is: %d\n", status);
             fflush(stdout);
         }
+        else
+        {
+            // 5. EXECUTING OTHER COMMANDS.
+            // When non-built-in command fork() a child process. the child will then use exec().
+            // Your shell should use PATH and allow shell scripts to be exectuted.
+            // If no command found then exit status 1.
+            // terminate child process
 
-        // 5. EXECUTING OTHER COMMANDS.
-        // When non-built-in command fork() a child process. the child will then use exec().
-        // Your shell should use PATH and allow shell scripts to be exectuted.
-        // If no command found then exit status 1.
-        // terminate child process
+            int childProcessResult;
+            pid_t childProcess = fork();
+
+            switch (childProcess)
+            {
+            case -1:
+                perror("child process failure");
+                fflush(stdout);
+                break;
+            case 0:
+                printf("case 0");
+                printf("child process: %d\n", childProcess);
+                fflush(stdout);
+                sleep(5);
+            default:
+                waitpid(childProcess, &childProcessResult, 0);
+                printf("parent process: %d\n", childProcess);
+                fflush(stdout);
+                break;
+            }
+        }
 
         // 6. INPUT AND OUTPUT REDIRECTION.
         // Input redirected on stdin only open for reading. Print error and status 1 smallsh if unable.
