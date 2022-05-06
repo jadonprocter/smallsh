@@ -15,7 +15,7 @@
 #include <signal.h>
 #include <stdbool.h>
 
-bool inArray(int *arr, int arrLength, int value)
+bool inArray(int arr[], int arrLength, int value)
 {
     for (int i = 0; i < arrLength; i++)
     {
@@ -100,6 +100,8 @@ int main()
         bool amp = false;         // run in background
         char *save = command;     // save ptr for tokenization
 
+        int status = 0; // status save
+
         // 1a. USE THE COLON AS A PROMPT FOR EACH LINE
         fflush(stdout); // flush to sanatize output
         printf(":");
@@ -166,23 +168,32 @@ int main()
             {
                 if (argArrIndex == 1)
                 {
-                    char *currDir = getcwd(args[0], strlen(args[0]));
-                    chdir(currDir);
+                    char dir[100];
+                    getcwd(dir, 100);
+                    printf("Before: %s\n", dir);
+                    int cdStat = chdir(args[0]);
+                    if (cdStat < 0)
+                    {
+                        printf("Error: %s is not a directory", args[0]);
+                    }
+                    getcwd(dir, 100);
+                    printf("After: %s\n", dir);
                 }
                 else
                 {
+                    char dir[100];
+                    getcwd(dir, 100);
+                    printf("Before: %s\n", dir);
                     chdir(getenv("HOME"));
+                    getcwd(dir, 100);
+                    printf("After: %s\n", dir);
                 }
             }
             // STATUS. - prints the exit status or the last foreground process status. (ignore 3 built in commands).
-
-            printf("cmd: %s ", cmd);
-            for (int i = 0; i < argArrIndex; i++)
+            if (strcmp(cmd, "status") == 0)
             {
-                printf(" arg: %s ", args[i]);
+                printf("STATUS is: %d\n", status);
             }
-            printf("\n");
-            // printf("infile: %s outfile: %s\n", inputRedirect, outputRedirect);
 
             for (int i = 0; i < argArrIndex; i++)
             {
@@ -190,14 +201,6 @@ int main()
             }
         }
     }
-
-    // 4. BUILT IN COMMANDS: EXIT, CD, AND STATUS.
-    // Don't need input and output redirection for these commands.
-    // No set exit status.
-    // These commands with '&' will be ignored.
-    // EXIT. - no args, leaves shell.
-    // CD. - with no args, goes home. otherwise goes to specified path.
-    // STATUS. - prints the exit status or the last foreground process status. (ignore 3 built in commands).
 
     // 5. EXECUTING OTHER COMMANDS.
     // When non-built-in command fork() a child process. the child will then use exec().
