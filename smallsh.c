@@ -84,7 +84,7 @@ void expand(char *s, pid_t p)
     }
     tmp[strlen(tmp)] = '\0'; // null terminate the string
     strcpy(s, tmp);          // overwrite s with the expanded array
-    printf("%s", s);
+    // printf("%s", s);
     fflush(stdout);
     // free memory used on the heap.
     free(dollarArray);
@@ -96,7 +96,7 @@ int main()
 {
     pid_t smallshPID = getpid();
     int exit = 0;
-
+    int status = 0; // status save
     while (exit == 0)
     {
         // 1b. COMMANDS WILL BE IN FORM: command [args...] [< inputFile] [> outputFile] [&].
@@ -117,8 +117,6 @@ int main()
 
         bool amp = false;     // run in background
         char *save = command; // save ptr for tokenization
-
-        int status = 0; // status save
 
         // 1a. USE THE COLON AS A PROMPT FOR EACH LINE
 
@@ -198,7 +196,7 @@ int main()
             {
                 char dir[100];
                 getcwd(dir, 100);
-                printf("Before: %s\n", dir);
+                // printf("Before: %s\n", dir);
                 int cdStat = chdir(args[0]);
                 if (cdStat < 0)
                 {
@@ -241,18 +239,22 @@ int main()
             switch (childProcess)
             {
             case -1:
-                perror("child process failure");
+                perror("child process failure\n");
                 fflush(stdout);
+                status = 1;
                 break;
             case 0:
-                printf("case 0");
                 printf("child process: %d\n", childProcess);
                 fflush(stdout);
-                sleep(5);
+                execl("bin/ls", "bin/ls", args);
+                perror("That command failed\n");
+                status = 2;
+                break;
             default:
-                waitpid(childProcess, &childProcessResult, 0);
+                childProcess = waitpid(childProcess, &childProcessResult, 0);
                 printf("parent process: %d\n", childProcess);
                 fflush(stdout);
+                status = 0;
                 break;
             }
         }
