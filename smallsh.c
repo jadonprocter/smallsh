@@ -82,8 +82,9 @@ void expand(char *s, pid_t p)
             sOffset++;
         }
     }
-    strcpy(s, tmp); // overwrite s with the expanded array
-
+    tmp[strlen(tmp) - 1] = '\0'; // null terminate the string
+    strcpy(s, tmp);              // overwrite s with the expanded array
+    printf("%s", s);
     // free memory used on the heap.
     free(dollarArray);
     free(tmp);
@@ -105,12 +106,16 @@ int main()
         char *command;             // char ptr to entire command line
         size_t commandSize = 2049; // max size of command
         command = (char *)malloc(commandSize * sizeof(char));
-        char cmd[11];             // chars in cmd
-        char *args[512];          // max args 512
+        char cmd[11]; // chars in cmd
+
+        char *args[512];     // max args 512
+        int argArrIndex = 0; // number of arguments
+
         char inputRedirect[501];  // inputFile
         char outputRedirect[501]; // outputFile
-        bool amp = false;         // run in background
-        char *save = command;     // save ptr for tokenization
+
+        bool amp = false;     // run in background
+        char *save = command; // save ptr for tokenization
 
         int status = 0; // status save
 
@@ -130,6 +135,10 @@ int main()
         // Handle exit (requirement 4).
         if (strcmp(command, "exit") == 0)
         {
+            for (int i = 0; i < argArrIndex; i++)
+            {
+                free(args[i]);
+            }
             free(command);
             break;
         }
@@ -143,7 +152,6 @@ int main()
         if (strcmp(token, "#"))
         {
             strcpy(cmd, token);
-            int argArrIndex = 0;
 
             while ((token = strtok_r(save, " ", &save)))
             {
@@ -157,10 +165,6 @@ int main()
                     token = strtok_r(save, " ", &save);
                     strcpy(outputRedirect, token);
                 }
-                else if (strcmp(token, "#") == 0)
-                {
-                    break;
-                }
                 else
                 {
                     int argLength = strlen(token);
@@ -169,48 +173,52 @@ int main()
                     argArrIndex++;
                 }
             }
-
-            // 4. BUILT IN COMMANDS: EXIT, CD, AND STATUS.
-            // Don't need input and output redirection for these commands.
-            // No set exit status.
-            // These commands with '&' will be ignored.
-            // EXIT. - no args, leaves shell. -- handled above
-            // CD. - with no args, goes home. otherwise goes to specified path.
-            if (strcmp(cmd, "cd") == 0)
-            {
-                if (argArrIndex == 1)
-                {
-                    char dir[100];
-                    getcwd(dir, 100);
-                    printf("Before: %s\n", dir);
-                    int cdStat = chdir(args[0]);
-                    if (cdStat < 0)
-                    {
-                        printf("Error: %s is not a directory", args[0]);
-                    }
-                    getcwd(dir, 100);
-                    printf("After: %s\n", dir);
-                }
-                else
-                {
-                    char dir[100];
-                    getcwd(dir, 100);
-                    printf("Before: %s\n", dir);
-                    chdir(getenv("HOME"));
-                    getcwd(dir, 100);
-                    printf("After: %s\n", dir);
-                }
-            }
-            // STATUS. - prints the exit status or the last foreground process status. (ignore 3 built in commands).
-            if (strcmp(cmd, "status") == 0)
-            {
-                printf("STATUS is: %d\n", status);
-            }
-
+        }
+        else
+        {
             for (int i = 0; i < argArrIndex; i++)
             {
                 free(args[i]);
             }
+            free(command);
+            continue;
+        }
+
+        // 4. BUILT IN COMMANDS: EXIT, CD, AND STATUS.
+        // Don't need input and output redirection for these commands.
+        // No set exit status.
+        // These commands with '&' will be ignored.
+        // EXIT. - no args, leaves shell. -- handled above
+        // CD. - with no args, goes home. otherwise goes to specified path.
+        if (strcmp(cmd, "cd") == 0)
+        {
+            if (argArrIndex == 1)
+            {
+                char dir[100];
+                getcwd(dir, 100);
+                printf("Before: %s\n", dir);
+                int cdStat = chdir(args[0]);
+                if (cdStat < 0)
+                {
+                    printf("Error: %s is not a directory", args[0]);
+                }
+                getcwd(dir, 100);
+                printf("After: %s\n", dir);
+            }
+            else
+            {
+                char dir[100];
+                getcwd(dir, 100);
+                printf("Before: %s\n", dir);
+                chdir(getenv("HOME"));
+                getcwd(dir, 100);
+                printf("After: %s\n", dir);
+            }
+        }
+        // STATUS. - prints the exit status or the last foreground process status. (ignore 3 built in commands).
+        if (strcmp(cmd, "status") == 0)
+        {
+            printf("STATUS is: %d\n", status);
         }
     }
 
