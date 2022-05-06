@@ -152,6 +152,9 @@ int main()
         if (strcmp(token, "#"))
         {
             strcpy(cmd, token);
+            args[0] = token;
+            args[0][strlen(token)] = '\0';
+            argArrIndex++;
 
             while ((token = strtok_r(save, " ", &save)))
             {
@@ -169,6 +172,7 @@ int main()
                 {
                     int argLength = strlen(token);
                     args[argArrIndex] = (char *)malloc(argLength * sizeof(char) + 1);
+                    token[strlen(token) - 1] = '\0'; // null terminate string
                     strcpy(args[argArrIndex], token);
                     argArrIndex++;
                 }
@@ -233,29 +237,29 @@ int main()
             // If no command found then exit status 1.
             // terminate child process
 
-            int childProcessResult;
+            int childProcessStatus;
             pid_t childProcess = fork();
 
-            switch (childProcess)
+            if (childProcess == -1)
             {
-            case -1:
-                perror("child process failure\n");
-                fflush(stdout);
-                status = 1;
-                break;
-            case 0:
-                printf("child process: %d\n", childProcess);
-                fflush(stdout);
-                execl("bin/ls", "bin/ls", args);
-                perror("That command failed\n");
-                status = 2;
-                break;
-            default:
-                childProcess = waitpid(childProcess, &childProcessResult, 0);
-                printf("parent process: %d\n", childProcess);
-                fflush(stdout);
+                perror("fork() failed");
+                status = -1;
+            }
+            else if (childProcess == 0)
+            {
                 status = 0;
-                break;
+                printf("child process: %d\n", childProcess);
+                execvp(cmd, args);
+
+                status = 1;
+                perror("execvp() failed");
+                return -1;
+            }
+            else
+            {
+                wait(&childProcessStatus);
+                printf("parent process: %d\n", getpid());
+                status = 1;
             }
         }
 
