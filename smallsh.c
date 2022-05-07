@@ -106,7 +106,6 @@ int main()
 
         size_t commandSize = 2049;                                  // max size of command
         char *command = (char *)malloc(commandSize * sizeof(char)); // char ptr to entire command line
-        char cmd[11];                                               // chars in cmd
 
         char **args = (char **)malloc(1 * sizeof(char)); // max args 512
         int argArrIndex = 0;                             // number of arguments
@@ -161,16 +160,15 @@ int main()
             break;
         }
 
-        char *token = strtok_r(save, " ", &save);
-
         // 2. COMMENTS AND BLANK LINES
         // Any line that begins with '#' is a comment.
         // A blank line will also do nothing.
         // Just re-prompt.
+
+        char *token = strtok_r(save, " ", &save);
+
         if (strcmp(token, "#"))
         {
-            strcpy(cmd, token);
-
             args[0] = (char *)malloc((strlen(token) + 1) * sizeof(char));
             strcpy(args[0], token);
             args[0][strlen(token)] = '\0';
@@ -178,6 +176,13 @@ int main()
 
             while ((token = strtok_r(save, " ", &save)))
             {
+                int argLength = strlen(token);                                    // length of argument.
+                args = realloc(args, (argArrIndex + 2) * sizeof(char));           // realloc args  array size.
+                args[argArrIndex] = (char *)malloc(argLength * sizeof(char) + 1); // malloc the index arg array.
+                token[strlen(token)] = '\0';                                      // null terminate string
+                strcpy(args[argArrIndex], token);                                 // coopy into args array at index.
+                argArrIndex++;
+
                 if (strcmp(token, "<") == 0)
                 {
                     token = strtok_r(save, " ", &save);
@@ -194,19 +199,9 @@ int main()
                     outputRedirect[strlen(outputRedirect)] = '\0'; // null terminate
                     out = true;
                 }
-
-                else
-                {
-                    int argLength = strlen(token);
-                    args = realloc(args, (argArrIndex + 2) * sizeof(char));
-                    args[argArrIndex] = (char *)malloc(argLength * sizeof(char) + 1);
-                    token[strlen(token)] = '\0'; // null terminate string
-                    strcpy(args[argArrIndex], token);
-                    argArrIndex++;
-                }
             }
             args = realloc(args, (argArrIndex + 2) * sizeof(char));
-            args[argArrIndex] = NULL;
+            args[argArrIndex] = NULL; // null terminate args array for future use in exec().
         }
         else
         {
@@ -277,7 +272,7 @@ int main()
         // These commands with '&' will be ignored.
         // EXIT. - no args, leaves shell. -- handled above
         // CD. - with no args, goes home. otherwise goes to specified path.
-        if (strcmp(cmd, "cd") == 0)
+        if (strcmp(args[0], "cd") == 0)
         {
             char dir[100];
             getcwd(dir, 100);
@@ -320,7 +315,7 @@ int main()
             }
         }
         // STATUS. - prints the exit status or the last foreground process status. (ignore 3 built in commands).
-        else if (strcmp(cmd, "status") == 0)
+        else if (strcmp(args[0], "status") == 0)
         {
             printf("STATUS is: %d\n", status);
             fflush(stdout);
@@ -345,9 +340,10 @@ int main()
             }
             else if (childProcess == 0)
             {
-
+                printf("starting child process %d\n", getpid());
+                fflush(stdout);
                 status = 0;
-                execvp(cmd, args);
+                execvp(args[0], args);
 
                 status = -1;
                 perror("execvp() failed");
@@ -355,7 +351,12 @@ int main()
             }
             else
             {
-                waitpid(childProcess, &childProcessStatus, 0);
+                printf("Parent Process %d\n", getpid());
+                fflush(stdout);
+                // waitpid(childProcess, &childProcessStatus, 0);
+                wait(&childProcessStatus);
+                printf("Finished Child Process %d\n", childProcess);
+                fflush(stdout);
                 status = 1;
             }
         }
