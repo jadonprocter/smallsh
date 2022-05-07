@@ -1,9 +1,0 @@
-Parent Process 58977
-Finished Child Process 58990
-:starting child process 58990
-p3testscript
-smallsh
-smallsh.c
-smallsh.dSYM
-t.txt
-::::

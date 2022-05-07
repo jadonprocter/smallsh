@@ -243,7 +243,7 @@ int main()
                 status = -1;
                 return -1;
             }
-            fcntl(inFile, F_SETFD, FD_CLOEXEC); // close on exec call
+            fcntl(inFile, FD_CLOEXEC, 1); // close on exec call
 
             int inRedirectResult = dup2(inFile, 0);
             if (inRedirectResult == -1)
@@ -262,7 +262,7 @@ int main()
                 status = -1;
                 return -1;
             }
-            fcntl(outFile, F_SETFD, FD_CLOEXEC); // close on exec call
+            fcntl(outFile, FD_CLOEXEC, 1); // close on exec call
 
             int outRedirectResult = dup2(outFile, 1);
             if (outRedirectResult == -1)
