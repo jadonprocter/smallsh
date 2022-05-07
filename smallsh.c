@@ -104,15 +104,17 @@ int main()
         // Max length of chars: 2048, Max length of args: 512.
         // no error checking command syntax!!!
 
-        char *command = (char *)malloc(commandSize * sizeof(char)); // char ptr to entire command line
         size_t commandSize = 2049;                                  // max size of command
+        char *command = (char *)malloc(commandSize * sizeof(char)); // char ptr to entire command line
         char cmd[11];                                               // chars in cmd
 
         char **args = (char **)malloc(1 * sizeof(char)); // max args 512
         int argArrIndex = 0;                             // number of arguments
 
-        char inputRedirect[501];  // inputFile
-        char outputRedirect[501]; // outputFile
+        char *inputRedirect; // inputFile
+        bool in = false;
+        char *outputRedirect; // outputFile
+        bool out = false;
 
         bool amp = false;     // run in background
         char *save = command; // save ptr for tokenization
@@ -127,6 +129,14 @@ int main()
 
         // remove new line
         command[bytesRead - 1] = '\0';
+        // if command is just null termination:
+        if (!strcmp(command, "\0"))
+        {
+
+            free(command);
+            free(args);
+            continue;
+        }
 
         // 3. EXPANSION OF VARIABLE "$$" INTO THE PROCESS ID OF SMALLSH ITSELF.
         expand(command, smallshPID);
@@ -137,6 +147,14 @@ int main()
             for (int i = 0; i < argArrIndex; i++)
             {
                 free(args[i]);
+            }
+            if (in)
+            {
+                free(inputRedirect);
+            }
+            if (out)
+            {
+                free(outputRedirect);
             }
             free(args);
             free(command);
@@ -163,13 +181,20 @@ int main()
                 if (strcmp(token, "<") == 0)
                 {
                     token = strtok_r(save, " ", &save);
+                    inputRedirect = (char *)malloc((strlen(token) + 1) * sizeof(char));
                     strcpy(inputRedirect, token);
+                    inputRedirect[strlen(inputRedirect)] = '\0'; // null terminate
+                    in = true;
                 }
                 else if (strcmp(token, ">") == 0)
                 {
                     token = strtok_r(save, " ", &save);
+                    outputRedirect = (char *)malloc((strlen(token) + 1) * sizeof(char));
                     strcpy(outputRedirect, token);
+                    outputRedirect[strlen(outputRedirect)] = '\0'; // null terminate
+                    out = true;
                 }
+
                 else
                 {
                     int argLength = strlen(token);
@@ -189,9 +214,61 @@ int main()
             {
                 free(args[i]);
             }
+            if (in)
+            {
+                free(inputRedirect);
+            }
+            if (out)
+            {
+                free(outputRedirect);
+            }
             free(args);
             free(command);
             continue;
+        }
+
+        // 6. INPUT AND OUTPUT REDIRECTION.
+        // Input redirected on stdin only open for reading. Print error and status 1 smallsh if unable.
+        // Output redirected on stdout only open for writing. Print error and status 1 smallsh if unable.
+        // Both can be redirected at the same time.
+
+        if (in)
+        {
+            int inFile = open(inputRedirect, O_RDONLY);
+            if (inFile == -1)
+            {
+                perror("open() inputRedirect failed.");
+                status = -1;
+                return -1;
+            }
+            fcntl(inFile, F_SETFD, FD_CLOEXEC); // close on exec call
+
+            int inRedirectResult = dup2(inFile, 0);
+            if (inRedirectResult == -1)
+            {
+                perror("dup2() inputRedirect failed.");
+                status = -1;
+                return -1;
+            }
+        }
+        if (out)
+        {
+            int outFile = open(outputRedirect, O_WRONLY);
+            if (outFile == -1)
+            {
+                perror("open() outputRedirect failed.");
+                status = -1;
+                return -1;
+            }
+            fcntl(outFile, F_SETFD, FD_CLOEXEC); // close on exec call
+
+            int outRedirectResult = dup2(outFile, 1);
+            if (outRedirectResult == -1)
+            {
+                perror("dup2() outputRedirect failed.");
+                status = -1;
+                return -1;
+            }
         }
 
         // 4. BUILT IN COMMANDS: EXIT, CD, AND STATUS.
@@ -264,30 +341,24 @@ int main()
             {
                 perror("fork() failed");
                 status = -1;
+                return -1;
             }
             else if (childProcess == 0)
             {
-                status = 0;
-                // printf("child process: %d\n", childProcess);
 
+                status = 0;
                 execvp(cmd, args);
 
-                status = 1;
+                status = -1;
                 perror("execvp() failed");
-                return -1;
+                return 1;
             }
             else
             {
-                wait(&childProcessStatus);
-                // printf("parent process: %d\n", getpid());
+                waitpid(childProcess, &childProcessStatus, 0);
                 status = 1;
             }
         }
-
-        // 6. INPUT AND OUTPUT REDIRECTION.
-        // Input redirected on stdin only open for reading. Print error and status 1 smallsh if unable.
-        // Output redirected on stdout only open for writing. Print error and status 1 smallsh if unable.
-        // Both can be redirected at the same time.
 
         // 7. FOREGROUND AND BACKGROUND COMMANDS.
         // Forground doesn't return foreground access until termination.
@@ -312,6 +383,14 @@ int main()
         for (int i = 0; i < argArrIndex - 1; i++)
         {
             free(args[i]);
+        }
+        if (in)
+        {
+            free(inputRedirect);
+        }
+        if (out)
+        {
+            free(outputRedirect);
         }
         free(args);
         free(command);
