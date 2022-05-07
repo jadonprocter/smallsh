@@ -176,12 +176,6 @@ int main()
 
             while ((token = strtok_r(save, " ", &save)))
             {
-                int argLength = strlen(token);                                    // length of argument.
-                args = realloc(args, (argArrIndex + 2) * sizeof(char));           // realloc args  array size.
-                args[argArrIndex] = (char *)malloc(argLength * sizeof(char) + 1); // malloc the index arg array.
-                token[strlen(token)] = '\0';                                      // null terminate string
-                strcpy(args[argArrIndex], token);                                 // coopy into args array at index.
-                argArrIndex++;
 
                 if (strcmp(token, "<") == 0)
                 {
@@ -198,6 +192,15 @@ int main()
                     strcpy(outputRedirect, token);
                     outputRedirect[strlen(outputRedirect)] = '\0'; // null terminate
                     out = true;
+                }
+                else
+                {
+                    int argLength = strlen(token);                                    // length of argument.
+                    args = realloc(args, (argArrIndex + 2) * sizeof(char));           // realloc args  array size.
+                    args[argArrIndex] = (char *)malloc(argLength * sizeof(char) + 1); // malloc the index arg array.
+                    token[strlen(token)] = '\0';                                      // null terminate string
+                    strcpy(args[argArrIndex], token);                                 // coopy into args array at index.
+                    argArrIndex++;
                 }
             }
             args = realloc(args, (argArrIndex + 2) * sizeof(char));
@@ -353,8 +356,7 @@ int main()
             {
                 printf("Parent Process %d\n", getpid());
                 fflush(stdout);
-                // waitpid(childProcess, &childProcessStatus, 0);
-                wait(&childProcessStatus);
+                waitpid(childProcess, &childProcessStatus, 0);
                 printf("Finished Child Process %d\n", childProcess);
                 fflush(stdout);
                 status = 1;
