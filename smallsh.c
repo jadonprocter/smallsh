@@ -193,6 +193,10 @@ int main()
                     outputRedirect[strlen(outputRedirect)] = '\0'; // null terminate
                     out = true;
                 }
+                else if (!strcmp(token, "&"))
+                {
+                    amp = true;
+                }
                 else
                 {
                     int argLength = strlen(token);                                    // length of argument.
@@ -346,6 +350,7 @@ int main()
                 printf("starting child process %d\n", getpid());
                 fflush(stdout);
                 status = 0;
+                sleep(2);
                 execvp(args[0], args);
 
                 status = -1;
@@ -356,7 +361,12 @@ int main()
             {
                 printf("Parent Process %d\n", getpid());
                 fflush(stdout);
-                waitpid(childProcess, &childProcessStatus, 0);
+                if (amp == false)
+                {
+                    waitpid(childProcess, &childProcessStatus, 0);
+                }
+                sleep(2);
+
                 printf("Finished Child Process %d\n", childProcess);
                 fflush(stdout);
                 status = 1;
