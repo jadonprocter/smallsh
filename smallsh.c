@@ -200,14 +200,14 @@ int main()
                 else
                 {
                     int argLength = strlen(token);                                    // length of argument.
-                    args = realloc(args, (argArrIndex + 2) * sizeof(char));           // realloc args  array size.
+                    args = (char **)realloc(args, (argArrIndex + 2) * sizeof(char));  // realloc args  array size.
                     args[argArrIndex] = (char *)malloc(argLength * sizeof(char) + 1); // malloc the index arg array.
                     token[strlen(token)] = '\0';                                      // null terminate string
                     strcpy(args[argArrIndex], token);                                 // coopy into args array at index.
                     argArrIndex++;
                 }
             }
-            args = realloc(args, (argArrIndex + 2) * sizeof(char));
+            args = (char **)realloc(args, (argArrIndex + 2) * sizeof(char));
             args[argArrIndex] = NULL; // null terminate args array for future use in exec().
         }
         else
@@ -350,7 +350,7 @@ int main()
                 printf("starting child process %d\n", getpid());
                 fflush(stdout);
                 status = 0;
-                sleep(2);
+
                 execvp(args[0], args);
 
                 status = -1;
@@ -365,7 +365,6 @@ int main()
                 {
                     waitpid(childProcess, &childProcessStatus, 0);
                 }
-                sleep(2);
 
                 printf("Finished Child Process %d\n", childProcess);
                 fflush(stdout);
