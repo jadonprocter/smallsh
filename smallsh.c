@@ -344,7 +344,7 @@ int main()
         if (out)
         {
             // open output file.
-            outFile = open(outputRedirect, O_WRONLY | O_CREAT | O_CLOEXEC | O_TRUNC);
+            outFile = open(outputRedirect, O_WRONLY | O_CREAT | O_CLOEXEC | O_TRUNC, 0666);
             if (outFile == -1)
             {
                 perror("open() outputRedirect failed.");
