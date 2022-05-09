@@ -343,7 +343,7 @@ int main()
             {
                 perror("open() inputRedirect failed.");
                 status = -1;
-                in = false;
+                toggleSigBool(&siginteger);
             }
             else
             {
@@ -366,6 +366,7 @@ int main()
                 perror("open() outputRedirect failed.");
                 status = -1;
                 out = false;
+                toggleSigBool(&siginteger);
             }
             else
             {
@@ -442,19 +443,6 @@ int main()
             {
                 perror("fork() failed");
                 status = -1;
-                // FREE ARGS
-                for (int i = 0; i < argArrIndex; i++)
-                {
-                    free(args[i]);
-                }
-                // RESET AND REALLOCATE ARGS.
-                argArrIndex = 0;
-                argArrSize = 1;
-                args = realloc(args, argArrSize * sizeof(char *));
-
-                // amp back to false for next loop.
-                amp = false;
-                continue;
             }
             // fork worked -- child process here.
             else if (childProcess == 0)
@@ -514,6 +502,7 @@ int main()
                             {
                                 printf("Ending background task %d with exit %d\n", procs[i].pid, WIFEXITED(procs[i].pid_stat));
                                 fflush(stdout);
+                                status = WEXITSTATUS(procs[i].pid_stat);
                             }
                             procs[i].pid = 0;
                         }
@@ -535,6 +524,7 @@ int main()
                             {
                                 printf("Ending background task %d with exit %d\n", procs[i].pid, WIFEXITED(procs[i].pid_stat));
                                 fflush(stdout);
+                                status = WEXITSTATUS(procs[i].pid_stat);
                             }
                             procs[i].pid = 0;
                         }
@@ -550,6 +540,10 @@ int main()
                 if (in)
                 {
                     // clean up in file and reset stdin.
+                    if (inFile == -1)
+                    {
+                        toggleSigBool(&siginteger);
+                    }
                     close(inFile);
                     dup2(saveIn, STDIN_FILENO);
                     free(inputRedirect);
@@ -558,6 +552,10 @@ int main()
                 if (out)
                 {
                     // clean up out file and reset stdout.
+                    if (outFile == -1)
+                    {
+                        toggleSigBool(&siginteger);
+                    }
                     close(outFile);
                     dup2(saveOut, STDOUT_FILENO);
                     free(outputRedirect);
@@ -579,8 +577,6 @@ int main()
 
         // amp back to false for next loop.
         amp = false;
-
-        // reset integer signal for loop.
     }
 
     // FREE MEMORY
