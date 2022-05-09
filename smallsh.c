@@ -45,16 +45,16 @@ void toggleSigBool(bool *b)
  */
 void sigtstp_handle(int sig)
 {
-    char fgOnlyOn[] = "\nParent Process running FOREGROUND ONLY mode!\n";
-    char fgOnlyOff[] = "\nParent Process EXITED foreground only mode!\n";
+    char fgOnlyOn[] = "\nParent Process running FOREGROUND ONLY mode!\n:";
+    char fgOnlyOff[] = "\nParent Process EXITED foreground only mode!\n:";
     toggleSigBool(&sigamp);
     if (sigamp)
     {
-        write(STDOUT_FILENO, fgOnlyOn, 47);
+        write(STDOUT_FILENO, fgOnlyOn, 48);
     }
     else
     {
-        write(STDOUT_FILENO, fgOnlyOff, 46);
+        write(STDOUT_FILENO, fgOnlyOff, 47);
     }
 }
 
