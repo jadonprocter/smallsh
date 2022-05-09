@@ -343,14 +343,18 @@ int main()
             {
                 perror("open() inputRedirect failed.");
                 status = -1;
+                in = false;
             }
-
-            // Make in file replace stdin.
-            int inRedirectResult = dup2(inFile, STDIN_FILENO);
-            if (inRedirectResult == -1)
+            else
             {
-                perror("dup2() inputRedirect failed.");
-                status = -1;
+                // Make in file replace stdin.
+                int inRedirectResult = dup2(inFile, STDIN_FILENO);
+                if (inRedirectResult == -1)
+                {
+                    perror("dup2() inputRedirect failed.");
+                    status = -1;
+                    in = false;
+                }
             }
         }
         if (out)
@@ -361,40 +365,18 @@ int main()
             {
                 perror("open() outputRedirect failed.");
                 status = -1;
-                // FREE ARGS
-                for (int i = 0; i < argArrIndex; i++)
-                {
-                    free(args[i]);
-                }
-                // RESET AND REALLOCATE ARGS.
-                argArrIndex = 0;
-                argArrSize = 1;
-                args = realloc(args, argArrSize * sizeof(char *));
-
-                // amp back to false for next loop.
-                amp = false;
-                continue;
+                out = false;
             }
-
-            // Make out file replace stdout.
-            int outRedirectResult = dup2(outFile, STDOUT_FILENO);
-            if (outRedirectResult == -1)
+            else
             {
-                perror("dup2() outputRedirect failed.");
-                status = -1;
-                // FREE ARGS
-                for (int i = 0; i < argArrIndex; i++)
+                // Make out file replace stdout.
+                int outRedirectResult = dup2(outFile, STDOUT_FILENO);
+                if (outRedirectResult == -1)
                 {
-                    free(args[i]);
+                    perror("dup2() outputRedirect failed.");
+                    status = -1;
+                    out = false;
                 }
-                // RESET AND REALLOCATE ARGS.
-                argArrIndex = 0;
-                argArrSize = 1;
-                args = realloc(args, argArrSize * sizeof(char *));
-
-                // amp back to false for next loop.
-                amp = false;
-                continue;
             }
         }
 
@@ -417,19 +399,6 @@ int main()
                     {
                         printf("Error: %s is not a directory", args[0]);
                         fflush(stdout);
-                        // FREE ARGS
-                        for (int i = 0; i < argArrIndex; i++)
-                        {
-                            free(args[i]);
-                        }
-                        // RESET AND REALLOCATE ARGS.
-                        argArrIndex = 0;
-                        argArrSize = 1;
-                        args = realloc(args, argArrSize * sizeof(char *));
-
-                        // amp back to false for next loop.
-                        amp = false;
-                        continue;
                     }
                 }
                 // to go up a dir
