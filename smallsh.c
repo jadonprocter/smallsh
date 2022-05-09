@@ -68,6 +68,7 @@ void sigint_handle(int sig)
     toggleSigBool(&siginteger);
     char terminate[] = "\nCurrent forground child process terminated by SIGINT\n";
     write(STDOUT_FILENO, terminate, 55);
+    toggleSigBool(&siginteger);
 }
 
 /*
@@ -75,11 +76,12 @@ void sigint_handle(int sig)
  * Recieves: an int array (pointer), the int length of the array, the int value to be looking for.
  * Returns: true if value in the array, otherwise false.s
  */
-bool inArray(int arr[], int arrLength, int value)
+bool inArray(int *arr, int arrLength, int value)
 {
     for (int i = 0; i < arrLength; i++)
     {
-        if (arr[i] == value)
+        int t = arr[i];
+        if (t == value)
         {
             return true;
         }
@@ -101,9 +103,20 @@ void expand(char *s, pid_t p)
     sprintf(pidToChar, "%d", p);
 
     int howManyExpansions = 0; // holds the amount of "$$" found in the command (in s).
+    for (int i = 0; i < length - 1; i++)
+    {
+        if (s[i] == '$' && i != length - 1)
+        {
+            i++;
+            if (s[i] == '$')
+            {
+                howManyExpansions++;
+            }
+        }
+    }
 
     // saves the indicies of where the "$$" are located.
-    int *dollarArray = (int *)malloc(howManyExpansions * sizeof(int));
+    int *dollarArray = (int *)calloc(howManyExpansions + 1, sizeof(int));
     int dollarIndex = 0;
 
     // finds instances of "$$" and updates the values needed.
@@ -114,7 +127,6 @@ void expand(char *s, pid_t p)
             i++;
             if (s[i] == '$')
             {
-                howManyExpansions++;
                 dollarArray[dollarIndex] = i - 1;
                 dollarIndex++;
             }
@@ -130,7 +142,7 @@ void expand(char *s, pid_t p)
     // fill the tmp char array  expanding the instances of "$$".
     for (int i = 0; i < lengthOfTmp; i++)
     {
-        if (inArray(dollarArray, howManyExpansions, i))
+        if (inArray(dollarArray, howManyExpansions, sOffset))
         {
             strcat(tmp, pidToChar);
             i += strlen(pidToChar) - 1;
@@ -318,8 +330,8 @@ int main()
         // Both can be redirected at the same time.
 
         // Save In and Out to regain cli.
-        int saveIn = dup(0);
-        int saveOut = dup(1);
+        int saveIn = dup(STDIN_FILENO);
+        int saveOut = dup(STDOUT_FILENO);
         int inFile;
         int outFile;
 
@@ -334,7 +346,7 @@ int main()
             }
 
             // Make in file replace stdin.
-            int inRedirectResult = dup2(inFile, 0);
+            int inRedirectResult = dup2(inFile, STDIN_FILENO);
             if (inRedirectResult == -1)
             {
                 perror("dup2() inputRedirect failed.");
@@ -349,14 +361,40 @@ int main()
             {
                 perror("open() outputRedirect failed.");
                 status = -1;
+                // FREE ARGS
+                for (int i = 0; i < argArrIndex; i++)
+                {
+                    free(args[i]);
+                }
+                // RESET AND REALLOCATE ARGS.
+                argArrIndex = 0;
+                argArrSize = 1;
+                args = realloc(args, argArrSize * sizeof(char *));
+
+                // amp back to false for next loop.
+                amp = false;
+                continue;
             }
 
             // Make out file replace stdout.
-            int outRedirectResult = dup2(outFile, 1);
+            int outRedirectResult = dup2(outFile, STDOUT_FILENO);
             if (outRedirectResult == -1)
             {
                 perror("dup2() outputRedirect failed.");
                 status = -1;
+                // FREE ARGS
+                for (int i = 0; i < argArrIndex; i++)
+                {
+                    free(args[i]);
+                }
+                // RESET AND REALLOCATE ARGS.
+                argArrIndex = 0;
+                argArrSize = 1;
+                args = realloc(args, argArrSize * sizeof(char *));
+
+                // amp back to false for next loop.
+                amp = false;
+                continue;
             }
         }
 
@@ -379,6 +417,19 @@ int main()
                     {
                         printf("Error: %s is not a directory", args[0]);
                         fflush(stdout);
+                        // FREE ARGS
+                        for (int i = 0; i < argArrIndex; i++)
+                        {
+                            free(args[i]);
+                        }
+                        // RESET AND REALLOCATE ARGS.
+                        argArrIndex = 0;
+                        argArrSize = 1;
+                        args = realloc(args, argArrSize * sizeof(char *));
+
+                        // amp back to false for next loop.
+                        amp = false;
+                        continue;
                     }
                 }
                 // to go up a dir
@@ -422,7 +473,19 @@ int main()
             {
                 perror("fork() failed");
                 status = -1;
-                return -1;
+                // FREE ARGS
+                for (int i = 0; i < argArrIndex; i++)
+                {
+                    free(args[i]);
+                }
+                // RESET AND REALLOCATE ARGS.
+                argArrIndex = 0;
+                argArrSize = 1;
+                args = realloc(args, argArrSize * sizeof(char *));
+
+                // amp back to false for next loop.
+                amp = false;
+                continue;
             }
             // fork worked -- child process here.
             else if (childProcess == 0)
@@ -519,7 +582,7 @@ int main()
                 {
                     // clean up in file and reset stdin.
                     close(inFile);
-                    dup2(saveIn, 0);
+                    dup2(saveIn, STDIN_FILENO);
                     free(inputRedirect);
                     in = false;
                 }
@@ -527,7 +590,7 @@ int main()
                 {
                     // clean up out file and reset stdout.
                     close(outFile);
-                    dup2(saveOut, 1);
+                    dup2(saveOut, STDOUT_FILENO);
                     free(outputRedirect);
                     out = false;
                 }
@@ -549,7 +612,6 @@ int main()
         amp = false;
 
         // reset integer signal for loop.
-        toggleSigBool(&siginteger);
     }
 
     // FREE MEMORY
