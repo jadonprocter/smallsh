@@ -5,16 +5,76 @@
  */
 
 // HEADER FILES: copied from OSU CS344 Spring 2022 Module 4 & 5
-#include <stdio.h>     // printf
-#include <sys/types.h> // pid_t, not used in this example
-#include <unistd.h>    // getpid, getppid
+#define _POSIX_C_SOURCE 200809L // getline
+#include <stdio.h>              // printf
+#include <sys/types.h>          // pid_t, not used in this example
+#include <unistd.h>             // getpid, getppid
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <string.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <signal.h>
 
+// Global Bools for signals
+bool sigamp = false;
+bool siginteger = false;
+
+// process struct for storing process information
+struct process
+{
+    pid_t pid;
+    int pid_stat;
+};
+
+/*
+ * Description: toggles a bool to the opposite of its current value
+ * Recieves: a pointer to bool
+ * Returns: None -- overwrites the bool in place.
+ */
+void toggleSigBool(bool *b)
+{
+    *b = !*b;
+}
+
+/*
+ * Description: handler function for SIGTSTP.
+ * Recieves: an int.
+ * Returns: None -- call to toggleSigBool.
+ */
+void sigtstp_handle(int sig)
+{
+    char fgOnlyOn[] = "\nParent Process running FOREGROUND ONLY mode!\n";
+    char fgOnlyOff[] = "\nParent Process EXITED foreground only mode!\n";
+    toggleSigBool(&sigamp);
+    if (sigamp)
+    {
+        write(STDOUT_FILENO, fgOnlyOn, 47);
+    }
+    else
+    {
+        write(STDOUT_FILENO, fgOnlyOff, 46);
+    }
+}
+
+/*
+ * Description: handler function for SIGINT.
+ * Recieves: an int.
+ * Returns: None -- call to toggleSigBool.
+ */
+void sigint_handle(int sig)
+{
+    toggleSigBool(&siginteger);
+    char terminate[] = "\nCurrent forground child process terminated by SIGINT\n";
+    write(STDOUT_FILENO, terminate, 55);
+}
+
+/*
+ * Description: checks is a given value is in a given array
+ * Recieves: an int array (pointer), the int length of the array, the int value to be looking for.
+ * Returns: true if value in the array, otherwise false.s
+ */
 bool inArray(int arr[], int arrLength, int value)
 {
     for (int i = 0; i < arrLength; i++)
@@ -92,23 +152,60 @@ void expand(char *s, pid_t p)
     free(pidToChar);
 }
 
+// WHERE THE MAIN FUNCTIONALITY LIVES.
 int main()
 {
+
+    // 8. SIGNALS: SIGINT & SIGTSTP.
+    // SIGINT:
+    // Ctrl-C will send SIGINT to parent process and all children at the same time.
+    // Children terminate self in FG and if in BG process ignore SIGINT.
+    // Parent FG process will print out signal.
+    // SIGTSTP:
+    // FG child processes ignore.
+    // BG child processes ignore.
+    // Parent must display an informative message.
+    // Shell will then no longer run background processes.
+    // '&' will be ignored.
+    // A second SIGTSTP will return the shell to normal.
+
+    // Signals: Partially cited from OSU modules for CS344 Spring 2022
+    // SIGINT:
+    struct sigaction SIGINT_action;
+    SIGINT_action.sa_handler = sigint_handle;
+    // Block all catchable signals while handle_SIGINT is running
+    sigfillset(&SIGINT_action.sa_mask);
+
+    SIGINT_action.sa_flags = SA_RESTART; // restart
+    sigaction(SIGINT, &SIGINT_action, NULL);
+
+    // SIGTSTP:
+    struct sigaction SIGTSTP_action;
+    SIGTSTP_action.sa_handler = sigtstp_handle;
+    // Block all catchable signals while handle_SIGINT is running
+    sigfillset(&SIGTSTP_action.sa_mask);
+
+    SIGTSTP_action.sa_flags = SA_RESTART; // restart
+    sigaction(SIGTSTP, &SIGTSTP_action, NULL);
+
+    // signal(SIGINT, sigint_handle);
+    // signal(SIGTSTP, sigtstp_handle);
+
     // 'Global values' to help with cli loop.
     pid_t smallshPID = getpid();
     int exit = 0;
     int status = 0;
+    struct process procs[100];
+    int procsSize = 0;
 
     // Initialize user input 'command'
-    size_t commandSize = 2049;                          // max size of command
-    char *command = malloc(commandSize * sizeof(char)); // char ptr to entire command line
+    size_t commandSize = 2048;                                // max size of command
+    char *command = malloc((commandSize + 1) * sizeof(char)); // char ptr to entire command line
 
     // Initialize array of arguements to pass to exec command.
-    char **args = malloc(512 * sizeof(char *)); // max args 512
-    for (int i = 0; i < 512; i++)
-    {
-        args[i] = malloc(50 * sizeof(char));
-    }
+    int argArrIndex = 0;
+    int argArrSize = 1;
+    char **args = malloc(1 * sizeof(char *)); // max args 512
 
     // Initialize file handling.
     char *inputRedirect; // inputFile
@@ -122,23 +219,22 @@ int main()
     // THE MAIN CLI LOOP --------------------------------
     while (exit == 0)
     {
+
         // 1b. COMMANDS WILL BE IN FORM: command [args...] [< inputFile] [> outputFile] [&].
         // '&' means the command will be executed in the background.
         // Max length of chars: 2048, Max length of args: 512.
         // no error checking command syntax!!!
-
-        int argArrIndex = 0; // number of arguments
 
         // 1a. USE THE COLON AS A PROMPT FOR EACH LINE
         printf(":");
         fflush(stdout);
 
         // Get user input.
-        scanf("%[^\n]", command);
+        getline(&command, &commandSize, stdin);
         fflush(stdin);
 
         // Remove new line.
-        command[strlen(command)] = '\0';
+        command[strlen(command) - 1] = '\0';
         // If command is just null termination:
         if (!strcmp(command, "\0"))
         {
@@ -158,48 +254,58 @@ int main()
         // Any line that begins with '#' is a comment.
         // A blank line will also do nothing.
         // Just re-prompt.
-        char *save;
-        char *token = strtok_r(command, " ", &save);
+
+        char *token = strtok(command, " ");
 
         if (strcmp(token, "#"))
         {
-            // args[0] = (char *)malloc((strlen(token) + 1) * sizeof(char));
+            // Add first token to arg 0.
+            args[0] = malloc(strlen(token) * sizeof(char));
             strcpy(args[0], token);
-            args[0][strlen(token) + 1] = '\0';
+            args[0][strlen(args[0])] = '\0';
             argArrIndex++;
+            argArrSize++;
 
-            while ((token = strtok_r(NULL, " ", &save)) != NULL)
+            // While loop till end of command.
+            while ((token = strtok(NULL, " ")))
             {
 
+                // Get input redirection if any.
                 if (strcmp(token, "<") == 0)
                 {
-                    token = strtok_r(save, " ", &save);
-                    inputRedirect = (char *)malloc((strlen(token) + 1) * sizeof(char));
+                    token = strtok(NULL, " ");
+                    inputRedirect = malloc(strlen(token) * sizeof(char));
                     strcpy(inputRedirect, token);
                     inputRedirect[strlen(inputRedirect)] = '\0'; // null terminate
                     in = true;
                 }
+                // Get output redirection if any.
                 else if (strcmp(token, ">") == 0)
                 {
-                    token = strtok_r(save, " ", &save);
-                    outputRedirect = (char *)malloc((strlen(token) + 1) * sizeof(char));
+                    token = strtok(NULL, " ");
+                    outputRedirect = malloc(strlen(token) * sizeof(char));
                     strcpy(outputRedirect, token);
                     outputRedirect[strlen(outputRedirect)] = '\0'; // null terminate
                     out = true;
                 }
+                // Check if too run in the background.
                 else if (!strcmp(token, "&"))
                 {
                     amp = true;
                 }
+                // Add the token to the array of argumants.
                 else
                 {
-                    token[strlen(token)] = '\0';      // null terminate string
-                    strcpy(args[argArrIndex], token); // copy into args array at index.
+                    args = realloc(args, argArrSize * sizeof(char *));        // Resize the heap mem of args.
+                    args[argArrIndex] = malloc(strlen(token) * sizeof(char)); // Allocate memory
+                    strcpy(args[argArrIndex], token);                         // copy into args array at index.
+                    args[argArrIndex][strlen(args[argArrIndex])] = '\0';      // null terminate
                     argArrIndex++;
+                    argArrSize++;
                 }
             }
-            args[argArrIndex] = NULL; // null terminate args array for future use in exec().
-            argArrIndex++;
+            args = realloc(args, argArrSize * sizeof(char *));
+            args[argArrIndex] = NULL; // NULL terminate the array for exec.
         }
         else
         {
@@ -211,42 +317,46 @@ int main()
         // Output redirected on stdout only open for writing. Print error and status 1 smallsh if unable.
         // Both can be redirected at the same time.
 
+        // Save In and Out to regain cli.
+        int saveIn = dup(0);
+        int saveOut = dup(1);
+        int inFile;
+        int outFile;
+
         if (in)
         {
-            int inFile = open(inputRedirect, O_RDONLY);
+            // Open in file
+            inFile = open(inputRedirect, O_RDONLY | O_CLOEXEC);
             if (inFile == -1)
             {
                 perror("open() inputRedirect failed.");
                 status = -1;
-                return -1;
             }
-            fcntl(inFile, FD_CLOEXEC, 1); // close on exec call
 
+            // Make in file replace stdin.
             int inRedirectResult = dup2(inFile, 0);
             if (inRedirectResult == -1)
             {
                 perror("dup2() inputRedirect failed.");
                 status = -1;
-                return -1;
             }
         }
         if (out)
         {
-            int outFile = open(outputRedirect, O_WRONLY);
+            // open output file.
+            outFile = open(outputRedirect, O_WRONLY | O_CREAT | O_CLOEXEC | O_TRUNC);
             if (outFile == -1)
             {
                 perror("open() outputRedirect failed.");
                 status = -1;
-                return -1;
             }
-            fcntl(outFile, FD_CLOEXEC, 1); // close on exec call
 
+            // Make out file replace stdout.
             int outRedirectResult = dup2(outFile, 1);
             if (outRedirectResult == -1)
             {
                 perror("dup2() outputRedirect failed.");
                 status = -1;
-                return -1;
             }
         }
 
@@ -258,18 +368,12 @@ int main()
         // CD. - with no args, goes home. otherwise goes to specified path.
         if (strcmp(args[0], "cd") == 0)
         {
-            char dir[100];
-            getcwd(dir, 100);
-            printf("%s\n", dir);
             if (argArrIndex == 2)
             {
+                // If not to go up or current dir
                 if (strcmp(args[1], "..") || strcmp(args[1], "."))
                 {
                     int cdStat = chdir(args[1]);
-
-                    char dir1[100];
-                    getcwd(dir1, 100);
-                    printf("%s\n", dir1);
 
                     if (cdStat < 0)
                     {
@@ -277,22 +381,18 @@ int main()
                         fflush(stdout);
                     }
                 }
+                // to go up a dir
                 else if (!strcmp(args[1], ".."))
                 {
                     chdir("..");
-                    char dir2[100];
-                    getcwd(dir2, 100);
-                    printf("%s\n", dir2);
                 }
+                // stay in current dir
                 else if (!strcmp(args[1], "."))
                 {
-
                     chdir(".");
-                    char dir3[100];
-                    getcwd(dir3, 100);
-                    printf("%s\n", dir3);
                 }
             }
+            // use HOME env var to go HOME.
             else
             {
                 chdir(getenv("HOME"));
@@ -301,7 +401,7 @@ int main()
         // STATUS. - prints the exit status or the last foreground process status. (ignore 3 built in commands).
         else if (strcmp(args[0], "status") == 0)
         {
-            printf("STATUS is: %d\n", status);
+            printf("exit value %d\n", status);
             fflush(stdout);
         }
         else
@@ -313,76 +413,146 @@ int main()
             // If no command found then exit status 1.
             // terminate child process
 
+            // Fork child process.
             int childProcessStatus;
             pid_t childProcess = fork();
 
+            // error in fork()
             if (childProcess == -1)
             {
                 perror("fork() failed");
                 status = -1;
                 return -1;
             }
+            // fork worked -- child process here.
             else if (childProcess == 0)
             {
-                printf("starting child process %d\n", getpid());
-                fflush(stdout);
+
                 status = 0;
+                // if in background.
+                if (amp == true)
+                {
+                    // If no input redirect on a background command redirect will be /dev/null.
+                    // If no output redirect on a background command redirect will be /dev/null.
+                    if (!in)
+                    {
+                        int inFD = open("/dev/null", O_RDWR | O_CLOEXEC);
+                        dup2(inFD, 0);
+                        in = true;
+                    }
+                    if (!out)
+                    {
+                        int outFD = open("/dev/null", O_RDWR | O_CLOEXEC);
+                        dup2(outFD, 1);
+                        out = true;
+                    }
+                }
+
+                if (siginteger == true)
+                {
+                    status = 1;
+                    return 0;
+                }
 
                 execvp(args[0], args);
 
                 status = -1;
                 perror("execvp() failed");
-                return 1;
+                return -1;
             }
+            // parent process
             else
             {
-                printf("Parent Process %d\n", getpid());
-                fflush(stdout);
-                if (amp == false)
+                // 7. FOREGROUND AND BACKGROUND COMMANDS.
+                // Forground doesn't return foreground access until termination.
+                // Background prints pid and on termination prints pid and status.
+
+                // run in foreground
+                if (amp == false || sigamp == true)
                 {
                     waitpid(childProcess, &childProcessStatus, 0);
+
+                    // check if any bg processes finished.
+                    for (int i = 0; i < procsSize; i++)
+                    {
+                        if (procs[i].pid != 0)
+                        {
+                            waitpid(-1, &procs[i].pid_stat, WNOHANG);
+                            if (WIFEXITED(procs[i].pid_stat))
+                            {
+                                printf("Ending background task %d with exit %d\n", procs[i].pid, WIFEXITED(procs[i].pid_stat));
+                                fflush(stdout);
+                            }
+                            procs[i].pid = 0;
+                        }
+                    }
+                }
+                // run in the background.
+                else
+                {
+                    printf("Starting background task %d\n", childProcess);
+                    fflush(stdout);
+
+                    // check if any bg processes finished.
+                    for (int i = 0; i < procsSize; i++)
+                    {
+                        if (procs[i].pid != 0)
+                        {
+                            waitpid(-1, &procs[i].pid_stat, WNOHANG);
+                            if (WIFEXITED(procs[i].pid_stat))
+                            {
+                                printf("Ending background task %d with exit %d\n", procs[i].pid, WIFEXITED(procs[i].pid_stat));
+                                fflush(stdout);
+                            }
+                            procs[i].pid = 0;
+                        }
+                    }
+
+                    // add bg process to the list of processes.
+                    waitpid(-1, &childProcessStatus, WNOHANG);
+                    procs[procsSize].pid = childProcess;
+                    procs[procsSize].pid_stat = childProcessStatus;
+                    procsSize++;
                 }
 
-                printf("Finished Child Process %d\n", childProcess);
-                fflush(stdout);
-                status = 1;
+                if (in)
+                {
+                    // clean up in file and reset stdin.
+                    close(inFile);
+                    dup2(saveIn, 0);
+                    free(inputRedirect);
+                    in = false;
+                }
+                if (out)
+                {
+                    // clean up out file and reset stdout.
+                    close(outFile);
+                    dup2(saveOut, 1);
+                    free(outputRedirect);
+                    out = false;
+                }
+                status = 0;
             }
         }
 
-        // 7. FOREGROUND AND BACKGROUND COMMANDS.
-        // Forground doesn't return foreground access until termination.
-        // Background prints pid and on termination prints pid and status.
-        // If no input redirect on a background command redirect will be /dev/null.
-        // If no output redirect on a background command redirect will be /dev/null.
+        // FREE ARGS
+        for (int i = 0; i < argArrIndex; i++)
+        {
+            free(args[i]);
+        }
+        // RESET AND REALLOCATE ARGS.
+        argArrIndex = 0;
+        argArrSize = 1;
+        args = realloc(args, argArrSize * sizeof(char *));
 
-        // 8. SIGNALS: SIGINT & SIGTSTP.
-        // SIGINT:
-        // Ctrl-C will send SIGINT to parent process and all children at the same time.
-        // Children terminate self in FG and if in BG process ignore SIGINT.
-        // Parent FG process will print out signal.
-        // SIGTSTP:
-        // FG child processes ignore.
-        // BG child processes ignore.
-        // Parent must display an informative message.
-        // Shell will then no longer run background processes.
-        // '&' will be ignored.
-        // A second SIGTSTP will return the shell to normal.
+        // amp back to false for next loop.
+        amp = false;
+
+        // reset integer signal for loop.
+        toggleSigBool(&siginteger);
     }
 
     // FREE MEMORY
-
-    for (int i = 0; i < 512; i++)
-    {
-        free(args[i]);
-    }
-    if (in)
-    {
-        free(inputRedirect);
-    }
-    if (out)
-    {
-        free(outputRedirect);
-    }
     free(args);
     free(command);
 
