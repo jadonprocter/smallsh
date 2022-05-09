@@ -94,9 +94,32 @@ void expand(char *s, pid_t p)
 
 int main()
 {
+    // 'Global values' to help with cli loop.
     pid_t smallshPID = getpid();
     int exit = 0;
-    int status = 0; // status save
+    int status = 0;
+
+    // Initialize user input 'command'
+    size_t commandSize = 2049;                          // max size of command
+    char *command = malloc(commandSize * sizeof(char)); // char ptr to entire command line
+
+    // Initialize array of arguements to pass to exec command.
+    char **args = malloc(512 * sizeof(char *)); // max args 512
+    for (int i = 0; i < 512; i++)
+    {
+        args[i] = malloc(50 * sizeof(char));
+    }
+
+    // Initialize file handling.
+    char *inputRedirect; // inputFile
+    bool in = false;
+    char *outputRedirect; // outputFile
+    bool out = false;
+
+    // Initialize the boolean amp to false -- whether or not to run in background.
+    bool amp = false;
+
+    // THE MAIN CLI LOOP --------------------------------
     while (exit == 0)
     {
         // 1b. COMMANDS WILL BE IN FORM: command [args...] [< inputFile] [> outputFile] [&].
@@ -104,36 +127,21 @@ int main()
         // Max length of chars: 2048, Max length of args: 512.
         // no error checking command syntax!!!
 
-        size_t commandSize = 2049;                                  // max size of command
-        char *command = (char *)malloc(commandSize * sizeof(char)); // char ptr to entire command line
-
-        char **args = (char **)malloc(1 * sizeof(char)); // max args 512
-        int argArrIndex = 0;                             // number of arguments
-
-        char *inputRedirect; // inputFile
-        bool in = false;
-        char *outputRedirect; // outputFile
-        bool out = false;
-
-        bool amp = false;     // run in background
-        char *save = command; // save ptr for tokenization
+        int argArrIndex = 0; // number of arguments
 
         // 1a. USE THE COLON AS A PROMPT FOR EACH LINE
-
         printf(":");
-        fflush(stdout); // flush to sanatize output
+        fflush(stdout);
 
-        size_t bytesRead = getline(&command, &commandSize, stdin); // get entire line.
-        fflush(stdin);                                             // flush to sanatize inputs
+        // Get user input.
+        scanf("%[^\n]", command);
+        fflush(stdin);
 
-        // remove new line
-        command[bytesRead - 1] = '\0';
-        // if command is just null termination:
+        // Remove new line.
+        command[strlen(command)] = '\0';
+        // If command is just null termination:
         if (!strcmp(command, "\0"))
         {
-
-            free(command);
-            free(args);
             continue;
         }
 
@@ -143,20 +151,6 @@ int main()
         // Handle exit (requirement 4).
         if (strcmp(command, "exit") == 0)
         {
-            for (int i = 0; i < argArrIndex; i++)
-            {
-                free(args[i]);
-            }
-            if (in)
-            {
-                free(inputRedirect);
-            }
-            if (out)
-            {
-                free(outputRedirect);
-            }
-            free(args);
-            free(command);
             break;
         }
 
@@ -164,17 +158,17 @@ int main()
         // Any line that begins with '#' is a comment.
         // A blank line will also do nothing.
         // Just re-prompt.
-
-        char *token = strtok_r(save, " ", &save);
+        char *save;
+        char *token = strtok_r(command, " ", &save);
 
         if (strcmp(token, "#"))
         {
-            args[0] = (char *)malloc((strlen(token) + 1) * sizeof(char));
+            // args[0] = (char *)malloc((strlen(token) + 1) * sizeof(char));
             strcpy(args[0], token);
-            args[0][strlen(token)] = '\0';
+            args[0][strlen(token) + 1] = '\0';
             argArrIndex++;
 
-            while ((token = strtok_r(save, " ", &save)))
+            while ((token = strtok_r(NULL, " ", &save)) != NULL)
             {
 
                 if (strcmp(token, "<") == 0)
@@ -199,33 +193,16 @@ int main()
                 }
                 else
                 {
-                    int argLength = strlen(token);                                    // length of argument.
-                    args = (char **)realloc(args, (argArrIndex + 2) * sizeof(char));  // realloc args  array size.
-                    args[argArrIndex] = (char *)malloc(argLength * sizeof(char) + 1); // malloc the index arg array.
-                    token[strlen(token)] = '\0';                                      // null terminate string
-                    strcpy(args[argArrIndex], token);                                 // coopy into args array at index.
+                    token[strlen(token)] = '\0';      // null terminate string
+                    strcpy(args[argArrIndex], token); // copy into args array at index.
                     argArrIndex++;
                 }
             }
-            args = (char **)realloc(args, (argArrIndex + 2) * sizeof(char));
             args[argArrIndex] = NULL; // null terminate args array for future use in exec().
+            argArrIndex++;
         }
         else
         {
-            for (int i = 0; i < argArrIndex; i++)
-            {
-                free(args[i]);
-            }
-            if (in)
-            {
-                free(inputRedirect);
-            }
-            if (out)
-            {
-                free(outputRedirect);
-            }
-            free(args);
-            free(command);
             continue;
         }
 
@@ -390,23 +367,24 @@ int main()
         // Shell will then no longer run background processes.
         // '&' will be ignored.
         // A second SIGTSTP will return the shell to normal.
-
-        // FREE MEMORY
-        for (int i = 0; i < argArrIndex - 1; i++)
-        {
-            free(args[i]);
-        }
-        if (in)
-        {
-            free(inputRedirect);
-        }
-        if (out)
-        {
-            free(outputRedirect);
-        }
-        free(args);
-        free(command);
     }
+
+    // FREE MEMORY
+
+    for (int i = 0; i < 512; i++)
+    {
+        free(args[i]);
+    }
+    if (in)
+    {
+        free(inputRedirect);
+    }
+    if (out)
+    {
+        free(outputRedirect);
+    }
+    free(args);
+    free(command);
 
     return 0;
 }
